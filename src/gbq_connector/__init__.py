@@ -1,0 +1,1 @@
+from gbq_connector.client import GBQConnectionClient

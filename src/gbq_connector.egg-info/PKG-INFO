@@ -1,0 +1,17 @@
+Metadata-Version: 2.1
+Name: gbq_connector
+Version: 0.1.0
+Summary: A wrapper for common Google Biq Query Operations
+Author: Mark Young
+License: MIT
+Platform: unix
+Platform: linux
+Platform: osx
+Classifier: Programming Language :: Python :: 3 :: Only
+Requires-Python: >=3.10
+License-File: LICENSE
+Provides-Extra: testing
+Requires-Dist: tox>=4.0; extra == "testing"
+Requires-Dist: pytest>=7.0; extra == "testing"
+Requires-Dist: pytest-cov>=4.0; extra == "testing"
+Requires-Dist: requests>=2.0; extra == "testing"

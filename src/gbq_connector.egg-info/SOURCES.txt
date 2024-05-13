@@ -1,0 +1,14 @@
+LICENSE
+README.md
+pyproject.toml
+setup.cfg
+setup.py
+src/gbq_connector/__init__.py
+src/gbq_connector/client.py
+src/gbq_connector/exceptions.py
+src/gbq_connector.egg-info/PKG-INFO
+src/gbq_connector.egg-info/SOURCES.txt
+src/gbq_connector.egg-info/dependency_links.txt
+src/gbq_connector.egg-info/not-zip-safe
+src/gbq_connector.egg-info/requires.txt
+src/gbq_connector.egg-info/top_level.txt
