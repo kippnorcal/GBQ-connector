@@ -1,0 +1,3 @@
+
+class NoSchemaError(BaseException):
+    pass

@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+google-cloud-bigquery = "*"
+pyarrow = "*"
+pandas-gbq = "*"
+google-auth = "*"
+pandas = "*"
+gbq-connector = {file = ".", editable = true}
+
+[dev-packages]
+pytest = "*"
+pytest-cov = "*"
+
+[requires]
+python_version = "3.10"
