@@ -14,11 +14,10 @@ logger = logging.getLogger(__name__)
 
 class GBQConnectionClient:
 
-    def __init__(self, project: str, dataset: Union[str, None] = None):
+    def __init__(self, project: Union[str, None] = None, dataset: Union[str, None] = None):
         self._project = project or getenv("GBQ_PROJECT")
         self._dataset = dataset or getenv("GBQ_DATASET")
         self._bq_client = self._build_big_query_client()
-        self._max_checks = 10
 
     @property
     def project(self) -> str:
@@ -205,10 +204,11 @@ class GBQConnectionClient:
         base_delay = 1  # Initial waiting time (seconds)
         max_delay = 60  # Maximum waiting time (seconds)
         delay_multiplier = 2  # Multiplier for exponential backoff
+        max_checks = 10  # Maximum possible number of checks before failing
 
         total_delay = 0  # Total waiting time
         while not job.done():
-            if total_delay > self._max_checks * max_delay:
+            if total_delay > max_checks * max_delay:
                 logger.error(f"[GBQ-Connector]: {job.job_type} job exceeded maximum waiting time.")
                 return None
 
