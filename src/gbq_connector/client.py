@@ -5,6 +5,7 @@ from typing import Union, Dict, List
 
 from google import auth
 from google.cloud import bigquery
+from google.cloud import storage
 import pandas as pd
 
 from gbq_connector.exceptions import NoSchemaError
@@ -18,6 +19,17 @@ class GBQConnectionClient:
         self._project = project or getenv("GBQ_PROJECT")
         self._dataset = dataset or getenv("GBQ_DATASET")
         self._bq_client = self._build_big_query_client()
+        self._storage_client = self._build_storage_client()
+
+    @staticmethod
+    def _build_storage_client():
+        credentials, project = auth.default(
+            scopes=[
+                "https://www.googleapis.com/auth/cloud-platform"
+            ]
+        )
+
+        return storage.Client(credentials=credentials, project=project)
 
     @property
     def project(self) -> str:
