@@ -209,78 +209,15 @@ class GBQConnectionClient:
         total_delay = 0  # Total waiting time
         while not job.done():
             if total_delay > self._max_checks * max_delay:
-                logger.error(f"{job.job_type} job exceeded maximum waiting time.")
+                logger.error(f"[GBQ-Connector]: {job.job_type} job exceeded maximum waiting time.")
                 return None
 
             delay = min(base_delay * delay_multiplier ** total_delay, max_delay)
             total_delay += delay
 
-            logger.info(f"Waiting {delay} seconds for {job.job_type} job completion...")
+            logger.debug(f"[GBQ-Connector]: Waiting {delay} seconds for {job.job_type} job completion...")
             sleep(delay)
             job.reload()  # Refresh job status
 
-        logger.info(f"{job.job_type} job completed.")
+        logger.debug(f"[GBQ-Connector]: {job.job_type} job completed.")
         return job.result()
-
-
-class SchemaConverter:
-
-    CONVERSION_MAP = {
-        "int64": "INTEGER",
-        "object": "STRING",
-        "float64": "FLOAT",
-    }
-
-    def __init__(self):
-        self._schema_field_obj = bigquery.SchemaField
-
-    def _eval_fields(self, fields: Dict[str, str]) -> Dict[str, str]:
-        bq_types = set(self.CONVERSION_MAP.values())
-        for k, v in fields:
-            if v.upper() not in bq_types:
-                fields[k] = "STRING"
-            else:
-                fields[k] = v.upper()
-        return fields
-
-    def _get_dtypes(self, cols: List[str], data: pd.DataFrame) -> Dict[str, str]:
-        dtype_mappings = {}
-        for col in cols:
-            dtype = data[col].dtype.name
-            bq_type = self.CONVERTION_MAP.get(dtype, "STRING")
-            dtype_mappings[col] = bq_type
-        return dtype_mappings
-
-    def _create_schema_type_objs(
-            self,
-            schema: Dict[str, str]
-    ) -> List[bigquery.SchemaField]:
-        schema_container = []
-        for k, v in schema:
-            schema_obj = self._schema_field_obj(k, v)
-            schema_container.append(schema_obj)
-
-    def create_schema(
-            self,
-            fields: Union[Dict[str, str], None] = None,
-            data: Union[pd.DataFrame, None] = None
-    ) -> Union[List[bigquery.SchemaField], None]:
-        schema = {}
-        if fields is not None:
-            schema = self._eval_fields(fields)
-        if data is not None:
-            # filter based on fields
-            cols = [x for x in data.columns.to_list() if x not in schema.keys()]
-            # get data type dict
-            data_dtypes = self._get_dtypes(cols, data)
-            schema = {**schema, **data_dtypes}
-        if schema:
-            return self._create_schema_type_objs(schema)
-        else:
-            return None
-
-        # If fields and no data, evaluate field values map to a GBQ data type and create empty table with fields passed
-        # if data and no fields, evaluate data's columns and datatypes and create table with columns, then load data
-        # If both fields and data, evaluate field values, then evaluate data cols if col name doesn't also exist in field.
-        #   All cols in data will be in table
-        #   Only fields will make it into a table if they exist in data. Fields that don't have a corresponding column in the data will bw dropped.
