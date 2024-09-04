@@ -150,42 +150,6 @@ class GBQConnectionClient:
         self.query(query)
         self.insert_df_into_table(table_name, dataset, data, project=project)
 
-    def create_partition_table(
-            self,
-            table_name: str,
-            schema: Union[Dict[str, str], None] = None,
-            data: Union[str, None] = None,
-            partition_field: Union[str, None] = None,
-            partition_type: Union[str, None] = None,
-            project: Union[str, None] = None,
-            dataset: Union[str, None] = None
-    ) -> None:
-        partition_obj = bigquery.TimePartitioning()
-        if partition_type is not None:
-            partition_obj.type_ = self._create_time_partitioning_type(partition_type)
-
-        if partition_field is not None:
-            partition_obj.field = partition_field
-
-        schema_obj = SchemaConverter(schema, data)
-
-        table_ref = self._build_table_ref(project, dataset, table_name)
-        table = bigquery.Table(table_ref, schema=schema_obj,)
-
-        table.time_partitioning = partition_obj
-        self._bq_client.create_table(table)
-
-    @staticmethod
-    def _create_time_partitioning_type(partition_type: str):
-        if partition_type.upper() == "DAY":
-            return bigquery.TimePartitioningType.DAY
-        elif partition_type.upper() == "YEAR":
-            return bigquery.TimePartitioningType.DAY
-        elif partition_type.upper() == "HOUR":
-            return bigquery.TimePartitioningType.DAY
-        elif partition_type.upper() == "YEAR":
-            return bigquery.TimePartitioningType.DAY
-
     def add_columns(self, table_name, data=None, schema=None, project: Union[str, None] = None, dataset: Union[str, None] = None) -> None:
         pass
 
