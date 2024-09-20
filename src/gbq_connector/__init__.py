@@ -1,1 +1,1 @@
-from gbq_connector.client import GBQConnectionClient
+from gbq_connector.bigquery_client import BigQueryClient

@@ -12,7 +12,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-class GBQConnectionClient:
+class BigQueryClient:
 
     def __init__(self, project: Union[str, None] = None):
         self._project = project or getenv("GBQ_PROJECT")
