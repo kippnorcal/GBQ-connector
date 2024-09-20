@@ -1,4 +1,3 @@
-from io import StringIO
 import logging
 from os import getenv
 from time import sleep
@@ -6,7 +5,6 @@ from typing import Union
 
 from google import auth
 from google.cloud import bigquery
-from google.cloud import storage
 import pandas as pd
 
 logger = logging.getLogger(__name__)

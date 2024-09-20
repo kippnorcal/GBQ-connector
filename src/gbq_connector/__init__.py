@@ -1,1 +1,3 @@
 from gbq_connector.bigquery_client import BigQueryClient
+from gbq_connector.cloud_client import CloudStorageClient
+from gbq_connector.dbt_client import DbtClient
