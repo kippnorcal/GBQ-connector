@@ -9,8 +9,6 @@ from google.cloud import bigquery
 from google.cloud import storage
 import pandas as pd
 
-from gbq_connector.exceptions import NoSchemaError
-
 logger = logging.getLogger(__name__)
 
 
@@ -129,9 +127,6 @@ class GBQConnectionClient:
         df.reset_index(inplace=True)
         return df
 
-    def drop_table(self,  table_name, project: Union[str, None] = None, dataset: Union[str, None] = None) -> None:
-        pass
-
     def _build_truncate_query(
             self,
             table_name: str,
@@ -150,15 +145,6 @@ class GBQConnectionClient:
         query = self._build_truncate_query(table_name, dataset=dataset, project=project)
         self.query(query)
         self.insert_df_into_table(table_name, dataset=dataset, data=data, project=project)
-
-    def add_columns(self, table_name, data=None, schema=None, project: Union[str, None] = None, dataset: Union[str, None] = None) -> None:
-        pass
-
-    def drop_columns(self, table_name, columns, project: Union[str, None] = None, dataset: Union[str, None] = None) -> None:
-        pass
-
-    def rename_columns(self, table_name, cols: dict, project: Union[str, None] = None, dataset: Union[str, None] = None) -> None:
-        pass
 
     def query(self, query):
         job = self._bq_client.query(query=query)
