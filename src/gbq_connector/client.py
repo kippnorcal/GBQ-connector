@@ -1,3 +1,4 @@
+from io import StringIO
 import logging
 from os import getenv
 from time import sleep
@@ -21,7 +22,7 @@ class GBQConnectionClient:
         self._storage_client = self._build_storage_client()
 
     @staticmethod
-    def _build_big_query_client(self):
+    def _build_big_query_client():
         credentials, project = auth.default(
             scopes=[
                 "https://www.googleapis.com/auth/drive",
@@ -137,7 +138,7 @@ class GBQConnectionClient:
             dataset: str,
             project: Union[str, None] = None,
     ) -> str:
-        table_ref = self._build_table_ref(table_name, dataset, project)
+        table_ref = self._build_table_ref(table_name, dataset=dataset, project=project)
         return f"TRUNCATE TABLE `{table_ref}`"
 
     def truncate_load(self,
@@ -146,9 +147,9 @@ class GBQConnectionClient:
                       data: pd.DataFrame,
                       project: Union[str, None] = None
                       ) -> None:
-        query = self._build_truncate_query(table_name, project, dataset)
+        query = self._build_truncate_query(table_name, dataset=dataset, project=project)
         self.query(query)
-        self.insert_df_into_table(table_name, dataset, data, project=project)
+        self.insert_df_into_table(table_name, dataset=dataset, data=data, project=project)
 
     def add_columns(self, table_name, data=None, schema=None, project: Union[str, None] = None, dataset: Union[str, None] = None) -> None:
         pass
@@ -193,3 +194,17 @@ class GBQConnectionClient:
 
         logger.debug(f"[GBQ-Connector]: {job.job_type} job completed.")
         return job.result()
+
+    def load_file_to_cloud(self, bucket: str, blob: str, local_file_path: str):
+        bucket = self._storage_client.bucket(bucket)
+        blob: storage.Blob = bucket.blob(blob)
+        blob.upload_from_file(local_file_path)
+
+    def load_dataframe_to_cloud(self, bucket: str, blob: str, df: pd.DataFrame):
+        csv_buffer = StringIO()
+        df.to_csv(csv_buffer, index=False)
+        csv_buffer.seek(0)
+
+        bucket = self._storage_client.bucket(bucket)
+        blob: storage.Blob = bucket.blob(blob)
+        blob.upload_from_string(csv_buffer.getvalue(), content_type="text/csv")
