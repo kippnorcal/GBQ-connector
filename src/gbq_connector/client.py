@@ -173,13 +173,14 @@ class GBQConnectionClient:
                 return df
 
     def _job_loop(self, job):
+        """A loop for checking the status of a job in Big Query"""
         # Exponential backoff parameters
-        base_delay = 1  # Initial waiting time (seconds)
-        max_delay = 60  # Maximum waiting time (seconds)
-        delay_multiplier = 2  # Multiplier for exponential backoff
-        max_checks = 10  # Maximum possible number of checks before failing
+        base_delay = 1
+        max_delay = 60
+        delay_multiplier = 2
+        max_checks = 10
+        total_delay = 0
 
-        total_delay = 0  # Total waiting time
         while not job.done():
             if total_delay > max_checks * max_delay:
                 logger.error(f"[GBQ-Connector]: {job.job_type} job exceeded maximum waiting time.")
@@ -196,11 +197,13 @@ class GBQConnectionClient:
         return job.result()
 
     def load_file_to_cloud(self, bucket: str, blob: str, local_file_path: str):
+        """Loads file of any type to Google Cloud Storage"""
         bucket = self._storage_client.bucket(bucket)
         blob: storage.Blob = bucket.blob(blob)
         blob.upload_from_file(local_file_path)
 
-    def load_dataframe_to_cloud(self, bucket: str, blob: str, df: pd.DataFrame):
+    def load_dataframe_to_cloud_as_csv(self, bucket: str, blob: str, df: pd.DataFrame):
+        """Ingests Pandas Dataframe and loads to Google Cloud Storage as csv file"""
         csv_buffer = StringIO()
         df.to_csv(csv_buffer, index=False)
         csv_buffer.seek(0)
