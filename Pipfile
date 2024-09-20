@@ -10,6 +10,7 @@ pandas-gbq = "*"
 google-auth = "*"
 pandas = "*"
 gbq-connector = {file = ".", editable = true}
+google-cloud-storage = "*"
 
 [dev-packages]
 pytest = "*"

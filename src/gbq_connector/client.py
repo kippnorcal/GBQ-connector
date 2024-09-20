@@ -1,3 +1,4 @@
+from io import StringIO
 import logging
 from os import getenv
 from time import sleep
@@ -5,6 +6,7 @@ from typing import Union, Dict, List
 
 from google import auth
 from google.cloud import bigquery
+from google.cloud import storage
 import pandas as pd
 
 from gbq_connector.exceptions import NoSchemaError
@@ -14,11 +16,31 @@ logger = logging.getLogger(__name__)
 
 class GBQConnectionClient:
 
-    def __init__(self, project: str, dataset: Union[str, None] = None):
+    def __init__(self, project: Union[str, None] = None):
         self._project = project or getenv("GBQ_PROJECT")
-        self._dataset = dataset or getenv("GBQ_DATASET")
         self._bq_client = self._build_big_query_client()
-        self._max_checks = 10
+        self._storage_client = self._build_storage_client()
+
+    @staticmethod
+    def _build_big_query_client():
+        credentials, project = auth.default(
+            scopes=[
+                "https://www.googleapis.com/auth/drive",
+                "https://www.googleapis.com/auth/bigquery",
+            ]
+        )
+
+        return bigquery.Client(credentials=credentials, project=project)
+
+    @staticmethod
+    def _build_storage_client():
+        credentials, project = auth.default(
+            scopes=[
+                "https://www.googleapis.com/auth/cloud-platform"
+            ]
+        )
+
+        return storage.Client(credentials=credentials, project=project)
 
     @property
     def project(self) -> str:
@@ -28,50 +50,31 @@ class GBQConnectionClient:
     def project(self, project: str) -> None:
         self._project = project
 
-    @property
-    def dataset(self) -> Union[str, None]:
-        return self._dataset
-
-    @dataset.setter
-    def dataset(self, dataset: str) -> None:
-        self._dataset = dataset
-
-    def _build_big_query_client(self):
-        credentials, project = auth.default(
-            scopes=[
-                "https://www.googleapis.com/auth/drive",
-                "https://www.googleapis.com/auth/bigquery",
-            ]
-        )
-
-        return bigquery.Client(credentials=credentials, project=self._project)
-
-    def _build_table_ref(self, table_name, project: Union[str, None], dataset: Union[str, None]) -> str:
+    def _build_table_ref(self, table_name, dataset: str, project: Union[str, None]) -> str:
         project = project or self._project
-        dataset = dataset or self._dataset
         return f"{project}.{dataset}.{table_name}"
 
     def create_table(self,
                      table_name,
+                     dataset: str,
                      data: Union[dict, None] = None,
                      schema: Union[dict, None] = None,
                      project: Union[str, None] = None,
-                     dataset: Union[str, None] = None
                      ) -> None:
         pass
 
-    def get_table_as_df(self, table_name, project: Union[str, None] = None, dataset: Union[str, None] = None) -> Union[None, pd.DataFrame]:
-        table_ref = self._build_table_ref(table_name, project=project, dataset=dataset)
+    def get_table_as_df(self, table_name, dataset: str, project: Union[str, None] = None) -> Union[None, pd.DataFrame]:
+        table_ref = self._build_table_ref(table_name, dataset, project=project)
         return self.query(f"SELECT * FROM `{table_ref}`")
 
     def insert_df_into_table(
             self,
             table_name: str,
+            dataset: str,
             data: pd.DataFrame,
             project: Union[str, None] = None,
-            dataset: Union[str, None] = None
     ) -> None:
-        table_ref = self._build_table_ref(table_name, project, dataset)
+        table_ref = self._build_table_ref(table_name, dataset, project)
         table = bigquery.Table(table_ref)
         job_config = bigquery.LoadJobConfig(write_disposition='WRITE_APPEND')
         job = self._bq_client.load_table_from_dataframe(data, table, job_config=job_config)
@@ -80,23 +83,23 @@ class GBQConnectionClient:
     def merge_df_into_table(
             self,
             table_name: str,
+            dataset: str,
             data: pd.DataFrame,
             id_col: str,
             project: Union[str, None] = None,
-            dataset: Union[str, None] = None
     ) -> None:
-        merged_data = self.merge_table_data_into_df(table_name, data, id_col, project=project, dataset=dataset)
-        self.truncate_load(table_name, merged_data, project=project, dataset=dataset)
+        merged_data = self.merge_table_data_into_df(table_name, dataset, data, id_col, project=project)
+        self.truncate_load(table_name, merged_data, dataset, project=project)
 
     def merge_table_data_into_df(
             self,
             table_name: str,
+            dataset: str,
             data: pd.DataFrame,
             id_col: str,
             project: Union[str, None] = None,
-            dataset: Union[str, None] = None
     ) -> pd.DataFrame:
-        original_data = self.get_table_as_df(table_name, project, dataset)
+        original_data = self.get_table_as_df(table_name, dataset, project)
         if original_data is not None:
             updated_data = self._merge_update_data(original_data, data, id_col)
             new_records = self._merge_query_for_new_records(updated_data, data, id_col)
@@ -132,52 +135,21 @@ class GBQConnectionClient:
     def _build_truncate_query(
             self,
             table_name: str,
+            dataset: str,
             project: Union[str, None] = None,
-            dataset: Union[str, None] = None
     ) -> str:
-        table_ref = self._build_table_ref(table_name, project, dataset)
+        table_ref = self._build_table_ref(table_name, dataset=dataset, project=project)
         return f"TRUNCATE TABLE `{table_ref}`"
 
-    def truncate_load(self, table_name, data, project: Union[str, None] = None, dataset: Union[str, None] = None) -> None:
-        query = self._build_truncate_query(table_name, project, dataset)
+    def truncate_load(self,
+                      table_name,
+                      dataset: str,
+                      data: pd.DataFrame,
+                      project: Union[str, None] = None
+                      ) -> None:
+        query = self._build_truncate_query(table_name, dataset=dataset, project=project)
         self.query(query)
-        self.insert_df_into_table(table_name, data, project, dataset)
-
-    def create_partition_table(
-            self,
-            table_name: str,
-            schema: Union[Dict[str, str], None] = None,
-            data: Union[str, None] = None,
-            partition_field: Union[str, None] = None,
-            partition_type: Union[str, None] = None,
-            project: Union[str, None] = None,
-            dataset: Union[str, None] = None
-    ) -> None:
-        partition_obj = bigquery.TimePartitioning()
-        if partition_type is not None:
-            partition_obj.type_ = self._create_time_partitioning_type(partition_type)
-
-        if partition_field is not None:
-            partition_obj.field = partition_field
-
-        schema_obj = SchemaConverter(schema, data)
-
-        table_ref = self._build_table_ref(project, dataset, table_name)
-        table = bigquery.Table(table_ref, schema=schema_obj,)
-
-        table.time_partitioning = partition_obj
-        self._bq_client.create_table(table)
-
-    @staticmethod
-    def _create_time_partitioning_type(partition_type: str):
-        if partition_type.upper() == "DAY":
-            return bigquery.TimePartitioningType.DAY
-        elif partition_type.upper() == "YEAR":
-            return bigquery.TimePartitioningType.DAY
-        elif partition_type.upper() == "HOUR":
-            return bigquery.TimePartitioningType.DAY
-        elif partition_type.upper() == "YEAR":
-            return bigquery.TimePartitioningType.DAY
+        self.insert_df_into_table(table_name, dataset=dataset, data=data, project=project)
 
     def add_columns(self, table_name, data=None, schema=None, project: Union[str, None] = None, dataset: Union[str, None] = None) -> None:
         pass
@@ -201,14 +173,16 @@ class GBQConnectionClient:
                 return df
 
     def _job_loop(self, job):
+        """A loop for checking the status of a job in Big Query"""
         # Exponential backoff parameters
-        base_delay = 1  # Initial waiting time (seconds)
-        max_delay = 60  # Maximum waiting time (seconds)
-        delay_multiplier = 2  # Multiplier for exponential backoff
+        base_delay = 1
+        max_delay = 60
+        delay_multiplier = 2
+        max_checks = 10
+        total_delay = 0
 
-        total_delay = 0  # Total waiting time
         while not job.done():
-            if total_delay > self._max_checks * max_delay:
+            if total_delay > max_checks * max_delay:
                 logger.error(f"[GBQ-Connector]: {job.job_type} job exceeded maximum waiting time.")
                 return None
 
@@ -221,3 +195,19 @@ class GBQConnectionClient:
 
         logger.debug(f"[GBQ-Connector]: {job.job_type} job completed.")
         return job.result()
+
+    def load_file_to_cloud(self, bucket: str, blob: str, local_file_path: str):
+        """Loads file of any type to Google Cloud Storage"""
+        bucket = self._storage_client.bucket(bucket)
+        blob: storage.Blob = bucket.blob(blob)
+        blob.upload_from_file(local_file_path)
+
+    def load_dataframe_to_cloud_as_csv(self, bucket: str, blob: str, df: pd.DataFrame):
+        """Ingests Pandas Dataframe and loads to Google Cloud Storage as csv file"""
+        csv_buffer = StringIO()
+        df.to_csv(csv_buffer, index=False)
+        csv_buffer.seek(0)
+
+        bucket = self._storage_client.bucket(bucket)
+        blob: storage.Blob = bucket.blob(blob)
+        blob.upload_from_string(csv_buffer.getvalue(), content_type="text/csv")
