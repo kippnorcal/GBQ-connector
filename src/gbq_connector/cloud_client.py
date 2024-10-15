@@ -49,3 +49,14 @@ class CloudStorageClient:
         bucket = self._storage_client.bucket(bucket)
         blob: storage.Blob = bucket.blob(blob)
         blob.upload_from_string(csv_buffer.getvalue(), content_type="text/csv")
+
+    def delete_file(self, bucket: str, blob: str) -> None:
+        """Deletes a file from a bucket in cloud storage"""
+        bucket = self._storage_client.bucket(bucket)
+        blob = bucket.blob(blob)
+        generation_match_precondition = None
+
+        blob.reload()  # Fetch blob metadata to use in generation_match_precondition.
+        generation_match_precondition = blob.generation
+
+        blob.delete(if_generation_match=generation_match_precondition)
