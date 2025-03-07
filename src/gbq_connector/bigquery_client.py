@@ -1,25 +1,20 @@
-from io import StringIO
 import logging
 from os import getenv
 from time import sleep
-from typing import Union, Dict, List
+from typing import Union
 
 from google import auth
 from google.cloud import bigquery
-from google.cloud import storage
 import pandas as pd
-
-from gbq_connector.exceptions import NoSchemaError
 
 logger = logging.getLogger(__name__)
 
 
-class GBQConnectionClient:
+class BigQueryClient:
 
     def __init__(self, project: Union[str, None] = None):
         self._project = project or getenv("GBQ_PROJECT")
         self._bq_client = self._build_big_query_client()
-        self._storage_client = self._build_storage_client()
 
     @staticmethod
     def _build_big_query_client():
@@ -31,16 +26,6 @@ class GBQConnectionClient:
         )
 
         return bigquery.Client(credentials=credentials, project=project)
-
-    @staticmethod
-    def _build_storage_client():
-        credentials, project = auth.default(
-            scopes=[
-                "https://www.googleapis.com/auth/cloud-platform"
-            ]
-        )
-
-        return storage.Client(credentials=credentials, project=project)
 
     @property
     def project(self) -> str:
@@ -129,9 +114,6 @@ class GBQConnectionClient:
         df.reset_index(inplace=True)
         return df
 
-    def drop_table(self,  table_name, project: Union[str, None] = None, dataset: Union[str, None] = None) -> None:
-        pass
-
     def _build_truncate_query(
             self,
             table_name: str,
@@ -150,15 +132,6 @@ class GBQConnectionClient:
         query = self._build_truncate_query(table_name, dataset=dataset, project=project)
         self.query(query)
         self.insert_df_into_table(table_name, dataset=dataset, data=data, project=project)
-
-    def add_columns(self, table_name, data=None, schema=None, project: Union[str, None] = None, dataset: Union[str, None] = None) -> None:
-        pass
-
-    def drop_columns(self, table_name, columns, project: Union[str, None] = None, dataset: Union[str, None] = None) -> None:
-        pass
-
-    def rename_columns(self, table_name, cols: dict, project: Union[str, None] = None, dataset: Union[str, None] = None) -> None:
-        pass
 
     def query(self, query):
         job = self._bq_client.query(query=query)
@@ -195,19 +168,3 @@ class GBQConnectionClient:
 
         logger.debug(f"[GBQ-Connector]: {job.job_type} job completed.")
         return job.result()
-
-    def load_file_to_cloud(self, bucket: str, blob: str, local_file_path: str):
-        """Loads file of any type to Google Cloud Storage"""
-        bucket = self._storage_client.bucket(bucket)
-        blob: storage.Blob = bucket.blob(blob)
-        blob.upload_from_file(local_file_path)
-
-    def load_dataframe_to_cloud_as_csv(self, bucket: str, blob: str, df: pd.DataFrame):
-        """Ingests Pandas Dataframe and loads to Google Cloud Storage as csv file"""
-        csv_buffer = StringIO()
-        df.to_csv(csv_buffer, index=False)
-        csv_buffer.seek(0)
-
-        bucket = self._storage_client.bucket(bucket)
-        blob: storage.Blob = bucket.blob(blob)
-        blob.upload_from_string(csv_buffer.getvalue(), content_type="text/csv")
