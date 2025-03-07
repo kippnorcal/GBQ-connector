@@ -42,11 +42,12 @@ class BigQueryClient:
     def create_table(self,
                      table_name,
                      dataset: str,
-                     data: Union[dict, None] = None,
-                     schema: Union[dict, None] = None,
+                     data: pd.DataFrame,
                      project: Union[str, None] = None,
                      ) -> None:
-        pass
+        table_ref = self._build_table_ref(table_name, dataset, project=project)
+        job = self._bq_client.load_table_from_dataframe(data, table_ref)
+        self._job_loop(job)
 
     def get_table_as_df(self, table_name, dataset: str, project: Union[str, None] = None) -> Union[None, pd.DataFrame]:
         table_ref = self._build_table_ref(table_name, dataset, project=project)
@@ -145,7 +146,8 @@ class BigQueryClient:
             else:
                 return df
 
-    def _job_loop(self, job):
+    @staticmethod
+    def _job_loop(job):
         """A loop for checking the status of a job in Big Query"""
         # Exponential backoff parameters
         base_delay = 1
