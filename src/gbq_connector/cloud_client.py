@@ -1,3 +1,4 @@
+from io import BytesIO
 from io import StringIO
 import logging
 from os import getenv
@@ -39,6 +40,12 @@ class CloudStorageClient:
         bucket = self._storage_client.bucket(bucket)
         blob: storage.Blob = bucket.blob(blob)
         blob.upload_from_file(local_file_path)
+
+    def load_in_memory_file_to_cloud(self, bucket: str, blob: str, file_object: BytesIO):
+        """Loads in-memory byte file to Google Cloud Storage"""
+        bucket = self._storage_client.bucket(bucket)
+        blob: storage.Blob = bucket.blob(blob)
+        blob.upload_from_file(file_object, rewind=True)
 
     def load_dataframe_to_cloud_as_csv(self, bucket: str, blob: str, df: pd.DataFrame):
         """Ingests Pandas Dataframe and loads to Google Cloud Storage as csv file"""
