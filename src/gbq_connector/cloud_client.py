@@ -1,14 +1,14 @@
 from io import BytesIO
 from io import StringIO
-import logging
 from os import getenv
 from typing import Union
 
 from google import auth
+from google.api_core.exceptions import NotFound
 from google.cloud import storage
 import pandas as pd
 
-logger = logging.getLogger(__name__)
+from gbq_connector.exceptions import CloudFileNotFoundError
 
 
 class CloudStorageClient:
@@ -66,7 +66,10 @@ class CloudStorageClient:
         blob.reload()  # Fetch blob metadata to use in generation_match_precondition.
         generation_match_precondition = blob.generation
 
-        blob.delete(if_generation_match=generation_match_precondition)
+        try:
+            blob.delete(if_generation_match=generation_match_precondition)
+        except NotFound:
+            raise CloudFileNotFoundError()
 
     def delete_folder(self, bucket: str, folder_prefix: str) -> None:
         bucket = self._storage_client.bucket(bucket)
