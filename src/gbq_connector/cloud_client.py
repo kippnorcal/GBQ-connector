@@ -63,13 +63,14 @@ class CloudStorageClient:
         blob = bucket.blob(blob)
         generation_match_precondition = None
 
-        blob.reload()  # Fetch blob metadata to use in generation_match_precondition.
-        generation_match_precondition = blob.generation
 
         try:
+            blob.reload()  # Fetch blob metadata to use in generation_match_precondition.
+            generation_match_precondition = blob.generation
+
             blob.delete(if_generation_match=generation_match_precondition)
         except NotFound:
-            raise CloudFileNotFoundError()
+            raise CloudFileNotFoundError(f"Error deleting file: {blob.name}")
 
     def delete_folder(self, bucket: str, folder_prefix: str) -> None:
         bucket = self._storage_client.bucket(bucket)
@@ -79,4 +80,7 @@ class CloudStorageClient:
 
         # Delete each blob
         for blob in blobs:
-            blob.delete()
+            try:
+                blob.delete()
+            except NotFound:
+                raise CloudFileNotFoundError(f"Error deleting file: {blob.name}")
