@@ -67,3 +67,13 @@ class CloudStorageClient:
         generation_match_precondition = blob.generation
 
         blob.delete(if_generation_match=generation_match_precondition)
+
+    def delete_folder(self, bucket: str, folder_prefix: str) -> None:
+        bucket = self._storage_client.bucket(bucket)
+
+        # List all objects with the given prefix
+        blobs = bucket.list_blobs(prefix=folder_prefix)
+
+        # Delete each blob
+        for blob in blobs:
+            blob.delete()
