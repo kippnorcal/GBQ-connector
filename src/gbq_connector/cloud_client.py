@@ -4,7 +4,6 @@ from os import getenv
 from typing import Union
 
 from google import auth
-from google.api_core.exceptions import NotFound
 from google.cloud import storage
 import pandas as pd
 
@@ -69,8 +68,9 @@ class CloudStorageClient:
             generation_match_precondition = blob.generation
 
             blob.delete(if_generation_match=generation_match_precondition)
-        except NotFound:
-            raise CloudFileNotFoundError(f"Error deleting file: {blob.name}")
+        except Exception as e:
+            # Catching exception from Google is tricky. Some exceptions are wrapped in another exception.
+            raise CloudFileNotFoundError(f"Error deleting file: {blob.name}: {e}")
 
     def delete_folder(self, bucket: str, folder_prefix: str) -> None:
         bucket = self._storage_client.bucket(bucket)
@@ -82,5 +82,6 @@ class CloudStorageClient:
         for blob in blobs:
             try:
                 blob.delete()
-            except NotFound:
-                raise CloudFileNotFoundError(f"Error deleting file: {blob.name}")
+            except Exception as e:
+                # Catching exception from Google is tricky. Some exceptions are wrapped in another exception.
+                raise CloudFileNotFoundError(f"Error deleting file: {blob.name}: {e}")
