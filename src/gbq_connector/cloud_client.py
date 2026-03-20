@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from io import BytesIO
 from io import StringIO
 from os import getenv
@@ -79,3 +80,32 @@ class CloudStorageClient:
                 blob.delete()
             except NotFound:
                 raise CloudFileNotFoundError(f"File '{blob.name}' not found in bucket '{bucket.name}'.")
+
+    def list_blobs(self, bucket: str, folder_prefix: str, file_extension: Union[None, str] = None) -> Iterable:
+        """List all blobs in a folder in Google Cloud Storage, optionally filtering by file extension"""
+        bucket = self._storage_client.bucket(bucket)
+        blobs = bucket.list_blobs(prefix=folder_prefix)
+        if file_extension:
+            for blob in blobs:
+                if blob.name.lower().endswith(file_extension) and not blob.name.endswith("/"):
+                    yield blob
+        else:
+            for blob in blobs:
+                if blob.name.endswith("/"):
+                    yield blob
+
+
+    def get_csv_blob_as_dataframe(self, bucket: str, blob_name: str) -> pd.DataFrame:
+        """
+        Fetch a specific CSV blob from GCS and return it as a pandas DataFrame.
+        """
+        bucket = self._storage_client.bucket(bucket)
+        blob = bucket.blob(blob_name)
+
+        if not blob.exists():
+            raise FileNotFoundError(f"Blob not found: gs://{bucket}/{blob_name}")
+
+        data = blob.download_as_bytes()
+        df = pd.read_csv(BytesIO(data))
+
+        return df
