@@ -93,3 +93,19 @@ class CloudStorageClient:
             for blob in blobs:
                 if blob.name.endswith("/"):
                     yield blob
+
+
+    def get_csv_blob_as_dataframe(self, bucket: str, blob_name: str) -> pd.DataFrame:
+        """
+        Fetch a specific CSV blob from GCS and return it as a pandas DataFrame.
+        """
+        bucket = self._storage_client.bucket(bucket)
+        blob = bucket.blob(blob_name)
+
+        if not blob.exists():
+            raise FileNotFoundError(f"Blob not found: gs://{bucket}/{blob_name}")
+
+        data = blob.download_as_bytes()
+        df = pd.read_csv(BytesIO(data))
+
+        return df
