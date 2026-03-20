@@ -1,6 +1,14 @@
 [build-system]
-requires = ["setuptools==75.6.0"] # ["setuptools>=76.0"]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "gbq-connector"
+dynamic = ["version"]
+
+[tool.setuptools_scm]
+version_scheme = "no-guess-dev"
+local_scheme = "no-local-version"
 
 [tools.pytest.ini_options]
 log_cli = true
