@@ -58,6 +58,31 @@ class CloudStorageClient:
         blob: storage.Blob = bucket.blob(blob)
         blob.upload_from_string(csv_buffer.getvalue(), content_type="text/csv")
 
+    def load_dataframe_to_cloud_as_parquet(
+        self,
+        bucket: str,
+        blob: str,
+        df: pd.DataFrame,
+        as_strings: bool = False,
+    ) -> None:
+        """
+        Ingests Pandas Dataframe and loads to Google Cloud Storage as a Parquet file.
+
+        If as_strings is True, every column is cast to string before writing, so
+        the Parquet schema is all strings. Null values stay null rather than
+        becoming the text "nan" or "None".
+        """
+        if as_strings:
+            df = df.astype("string")
+
+        parquet_buffer = BytesIO()
+        df.to_parquet(parquet_buffer, index=False, engine="pyarrow")
+        parquet_buffer.seek(0)
+
+        bucket = self._storage_client.bucket(bucket)
+        blob: storage.Blob = bucket.blob(blob)
+        blob.upload_from_file(parquet_buffer, content_type="application/vnd.apache.parquet")
+
     def delete_file(self, bucket: str, blob: str) -> None:
         """Deletes a file from a bucket in cloud storage"""
         bucket = self._storage_client.bucket(bucket)
